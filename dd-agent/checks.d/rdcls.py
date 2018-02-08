@@ -32,7 +32,7 @@ def get_instances():
     redis_client = redis.StrictRedis(CLUSTER_HOST, CLUSTER_PORT)
     nodes = redis_client.execute_command('cluster nodes').split('\n')
 
-    local_ips = set(['127.0.0.1'] + [i[4][0] for i in socket.getaddrinfo(socket.gethostname(), None)])
+    local_ips = set([i[4][0] for i in socket.getaddrinfo(socket.gethostname(), None)])
     for ip in local_ips:
         ip_str = ip + ':'
         for node in nodes:
