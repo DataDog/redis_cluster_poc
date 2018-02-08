@@ -26,12 +26,17 @@ LINK_DOWN_KEY = 'master_link_down_since_seconds'
 CLUSTER_HOST = '127.0.0.1'
 CLUSTER_PORT = 7000
 INCLUDE_LOOPBACK = False  # Include loopback IP for testing purposes
+TIMEOUT = 15
 
 def get_instances():
     local_redis_instances = []
 
-    redis_client = redis.StrictRedis(CLUSTER_HOST, CLUSTER_PORT)
-    nodes = redis_client.execute_command('cluster nodes').split('\n')
+    redis_client = redis.StrictRedis(CLUSTER_HOST,
+                                     CLUSTER_PORT,
+                                     socket_timeout=TIMEOUT,
+                                     socket_connect_timeout=TIMEOUT)
+
+    cluster_nodes = redis_client.execute_command('cluster nodes').split('\n')
 
     if INCLUDE_LOOPBACK:
         local_ips = set(['127.0.0.1'] + [i[4][0] for i in socket.getaddrinfo(socket.gethostname(), None)])
@@ -40,7 +45,7 @@ def get_instances():
 
     for ip in local_ips:
         ip_str = ip + ':'
-        for node in nodes:
+        for node in cluster_nodes:
             if ip_str in node:
                 port = node.split(ip_str, 1)[1].split('@', 1)[0]
                 local_redis_instances.append({'host':ip, 'port':port})
