@@ -46,7 +46,7 @@ def get_instances():
     for ip in local_ips:
         ip_str = ip + ':'
         for node in cluster_nodes:
-            if ip_str in node:
+            if ip_str in node and 'disconnected' not in node:
                 port = node.split(ip_str, 1)[1].split('@', 1)[0]
                 local_redis_instances.append({'host':ip, 'port':port})
     return local_redis_instances
@@ -125,7 +125,7 @@ class Redis(AgentCheck):
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
-        AgentCheck.__init__(self, name, init_config, agentConfig, get_instances())
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.connections = {}
         self.last_timestamp_seen = defaultdict(int)
 
@@ -403,13 +403,19 @@ class Redis(AgentCheck):
             self.gauge('redis.command.calls', stats['calls'], tags=command_tags)
             self.gauge('redis.command.usec_per_call', stats['usec_per_call'], tags=command_tags)
 
-    def check(self, instance):
+    def check_instance(self, instance):
         if ("host" not in instance or "port" not in instance) and "unix_socket_path" not in instance:
             raise Exception("You must specify a host/port couple or a unix_socket_path")
         custom_tags = instance.get('tags', [])
 
         self._check_db(instance, custom_tags)
         self._check_slowlog(instance, custom_tags)
+
+    def check(self, instance):
+        instances = get_instances()
+        self.log.info('redis cluster nodes returned the following instances: %s', instances)
+        for instance in instances:
+            self.check_instance(instance)
 
     def _collect_metadata(self, info):
         if info and 'redis_version' in info:
