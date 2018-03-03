@@ -1,4 +1,8 @@
 init_config:
 
 instances:
-    [{}]
+  - cluster_host: 'localhost'
+    cluster_port: 7000
+    include_loopback: True
+    socket_timeout: 15
+    socket_connect_timeout: 15

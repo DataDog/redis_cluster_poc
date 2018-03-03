@@ -23,22 +23,20 @@ MAX_SLOW_ENTRIES_KEY = "slowlog-max-len"
 REPL_KEY = 'master_link_status'
 LINK_DOWN_KEY = 'master_link_down_since_seconds'
 
-CLUSTER_HOST = '127.0.0.1'
-CLUSTER_PORT = 7000
-INCLUDE_LOOPBACK = False  # Include loopback IP for testing purposes
-TIMEOUT = 15
+DEFAULT_HOST = 'localhost'
+DEFAULT_PORT = 7000
 
-def get_instances():
+def get_instances(cluster_host, cluster_port, include_loopback, socket_timeout, socket_connect_timeout):
     local_redis_instances = []
 
-    redis_client = redis.StrictRedis(CLUSTER_HOST,
-                                     CLUSTER_PORT,
-                                     socket_timeout=TIMEOUT,
-                                     socket_connect_timeout=TIMEOUT)
+    redis_client = redis.StrictRedis(cluster_host,
+                                     cluster_port,
+                                     socket_timeout=socket_timeout,
+                                     socket_connect_timeout=socket_connect_timeout)
 
     cluster_nodes = redis_client.execute_command('cluster nodes').split('\n')
 
-    if INCLUDE_LOOPBACK:
+    if include_loopback:
         local_ips = set(['127.0.0.1'] + [i[4][0] for i in socket.getaddrinfo(socket.gethostname(), None)])
     else:
         local_ips = set([i[4][0] for i in socket.getaddrinfo(socket.gethostname(), None)])
@@ -412,7 +410,13 @@ class Redis(AgentCheck):
         self._check_slowlog(instance, custom_tags)
 
     def check(self, instance):
-        instances = get_instances()
+        cluster_host = instance.get('cluster_host', DEFAULT_HOST)
+        cluster_port = instance.get('cluster_port', DEFAULT_PORT)
+        include_loopback = instance.get('include_loopback', False)
+        socket_timeout = instance.get('socket_timeout', 15)
+        socket_connect_timeout = instance.get('socket_connect_timeout', 15)
+        instances = get_instances(cluster_host, cluster_port, include_loopback,
+                                  socket_timeout, socket_connect_timeout)
         self.log.info('redis cluster nodes returned the following instances: %s', instances)
         for instance in instances:
             self.check_instance(instance)
